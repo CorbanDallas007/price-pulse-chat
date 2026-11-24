@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stealth Price Chat</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1115; --panel: #161a22; --text: #e8eaed; --muted: #94a3b8;
+    --accent: #6366f1; --accent-hover: #4f46e5; --border: #252a36;
+    --price: #22c55e; --danger: #ef4444;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg); color: var(--text); display: flex; flex-direction: column;
+  }
+  header {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 16px 24px; display: flex; align-items: center; gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; letter-spacing: -0.5px; }
+  .brand .dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  main { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); text-align: center; }
+  .empty h2 { font-size: 1.25rem; margin-bottom: 8px; color: var(--text); }
+  .empty p { max-width: 420px; line-height: 1.5; }
+  .msg { display: flex; flex-direction: column; gap: 8px; animation: fadeIn 0.35s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.user { align-items: flex-end; }
+  .bubble { padding: 12px 16px; border-radius: 16px; font-size: 0.95rem; line-height: 1.5; max-width: 80%; word-wrap: break-word; }
+  .msg.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; }
+  .msg.bot .bubble { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+  .meta { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .msg.user .meta { text-align: right; }
+</style>
+
+  .progress-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; max-width: 80%; align-self: flex-start; animation: fadeIn 0.35s ease; }
+  .progress-title { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-bar { height: 6px; background: #1e232e; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a855f7); width: 0%; transition: width 0.3s ease; }
+  .progress-pct { font-size: 0.75rem; color: var(--muted); margin-top: 6px; text-align: right; }
+  .results-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; max-width: 100%; align-self: flex-start; animation: fadeIn 0.4s ease; }
+  .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85rem; color: var(--muted); }
+  .results-header strong { color: var(--text); }
+  .cards { display: flex; flex-direction: column; gap: 10px; }
+  .card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: #0c0e13; display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); border-color: var(--accent); }
+  .badge { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; color: #fff; text-align: center; line-height: 1.15; padding: 0 4px; }
+  .card-info .title { font-weight: 700; font-size: 0.98rem; margin-bottom: 4px; display: -webkit-box; overflow: hidden; }
+  .card-info .source { font-size: 0.72rem; color: var(--muted); }
+  .price-col { text-align: right; }
+  .price-main { font-size: 1.5rem; font-weight: 800; color: var(--price); line-height: 1.1; }
+  .btn-buy { margin-top: 8px; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; white-space: nowrap; }
+  .btn-buy:hover { background: var(--accent-hover); } .btn-buy:active { transform: scale(0.97); }
+  .rank { font-size: 0.8rem; font-weight: 800; color: var(--muted); text-align: right; }
+  footer { background: var(--panel); border-top: 1px solid var(--border); padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+  .quick-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { background: #1e232e; border: 1px solid var(--border); color: var(--muted); border-radius: 20px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; user-select: none; }
+  .tag:hover { border-color: var(--accent); color: var(--text); background: #252a3b; }
+  .input-row { display: flex; gap: 10px; align-items: center; }
+  #query { flex: 1; background: #0c0e13; border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 10px; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+  #query:focus { border-color: var(--accent); } #query::placeholder { color: var(--muted); }
+  .btn-send { background: var(--accent); color: #fff; border: none; border-radius: 10px; width: 48px; height: 48px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .btn-send:hover { background: var(--accent-hover); } .btn-send:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-clear { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; margin-left: auto; transition: all 0.2s; }
+  .btn-clear:hover { border-color: var(--danger); color: var(--danger); }
+  .hint { font-size: 0.75rem; color: var(--muted); margin-left: auto; }
+  .error { color: var(--danger); font-size: 0.85rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 10px 14px; max-width: 80%; align-self: flex-start; animation: fadeIn 0.35s ease; }
+  @media (max-width: 640px) {
+    main { padding: 16px; } footer { padding: 12px 16px; }
+    .bubble { max-width: 90%; } .progress-wrap, .results-wrap { max-width: 100%; }
+    .card { grid-template-columns: 48px 1fr auto; gap: 10px; padding: 12px 14px; }
+    .price-main { font-size: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><div class="dot"></div>Stealth Price Chat</div>
+  </header>
+  <main id="chat">
+    <div class="empty">
+      <h2>Stealth Price Chat</h2>
+      <p>Введите название товара, и я найду топ-5 самых дешёвых предложений по маркетплейсам без использования ИИ.</p>
+      <div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">
+        <span class="tag" onclick="fillQuery('PS5 Slim')">PS5 Slim</span>
+        <span class="tag" onclick="fillQuery('RTX 5060 Ti 16GB')">RTX 5060 Ti 16GB</span>
+        <span class="tag" onclick="fillQuery('iPhone 15')">iPhone 15</span>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <div class="quick-tags" id="quickTags">
+      <span class="tag" onclick="fillQuery('PS5 Slim')">PS5 Slim</span>
+      <span class="tag" onclick="fillQuery('RTX 5060 Ti 16GB')">RTX 5060 Ti 16GB</span>
+      <span class="tag" onclick="fillQuery('iPhone 15')">iPhone 15</span>
+    </div>
+    <div class="input-row">
+      <input type="text" id="query" placeholder="Например: iPhone 15, RTX 5060 Ti…" autocomplete="off">
+      <button class="btn-send" id="btnSend" title="Отправить">&#9654;</button>
+    </div>
+    <button class="btn-clear" id="btnClear" title="Очистить историю">Очистить историю</button>
+    <div class="hint">Отправка по Enter &nbsp;•&nbsp;Кнопка «Купить» открывает ссылку в новой вкладке</div>
+  </footer>
+<script>
+
+  const API_BASE = window.location.origin;
+  const chat = document.getElementById('chat');
+  const input = document.getElementById('query');
+  const btnSend = document.getElementById('btnSend');
+  const btnClear = document.getElementById('btnClear');
+  let empty = chat.querySelector('.empty');
+
+  function fillQuery(q) {
+    input.value = q;
+    input.focus();
+  }
+
+  function scrollBottom() {
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+  }
+
+  function formatPrice(price) {
+    return price.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' \u20bd';
+  }
+
+  function colorForMarketplace(marketplace) {
+    const colors = {
+      ozon: '#f82762', wildberries: '#ff3f3f', 'yandex market': '#ffa000',
+      dns: '#005daa', citilink: '#008000', 'price.ru': '#6c5ce7',
+      aggregator: '#8e44ad', serp: '#2ecc71',
+    };
+    return colors[(marketplace || 'aggregator').toLowerCase()] || colors.aggregator;
+  }
+
+  function removeEmpty() {
+    if (empty) { empty.remove(); empty = null; }
+  }
+
+  function addUserMessage(text) {
+    removeEmpty();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg user';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    wrapper.appendChild(bubble);
+    wrapper.appendChild(meta);
+    chat.appendChild(wrapper);
+    scrollBottom();
+  }
+
+  function addBotMessage(htmlContent, metaText) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg bot';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = htmlContent;
+    wrapper.appendChild(bubble);
+    if (metaText) {
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = metaText;
+      wrapper.appendChild(meta);
+    }
+    chat.appendChild(wrapper);
+    scrollBottom();
+  }
+
+  function showProgress() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg bot';
+    wrapper.id = 'msg-progress';
+    const wrap = document.createElement('div');
+    wrap.className = 'progress-wrap';
+    wrap.innerHTML = `
+      <div class="progress-title"><div class="spinner"></div>Опрашиваем маркетплейсы и агрегаторы…</div>
+      <div class="progress-bar"><div class="progress-fill" id="fillProgress"></div></div>
+      <div class="progress-pct" id="pctProgress">0%</div>
+    `;
+    wrapper.appendChild(wrap);
+    chat.appendChild(wrapper);
+    scrollBottom();
+    return wrapper;
+  }
+
+  function updateProgress(pct) {
+    const fill = document.getElementById('fillProgress');
+    const pctEl = document.getElementById('pctProgress');
+    if (fill) fill.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
+  }
+
+  function removeProgress() {
+    const el = document.getElementById('msg-progress');
+    if (el) el.remove();
+  }
+
+  function showError(text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg bot error';
+    wrapper.textContent = text;
+    chat.appendChild(wrapper);
+    scrollBottom();
+  }
+
+  function buildResultsCard(offer, rank) {
+    const badgeColor = colorForMarketplace(offer.marketplace);
+    return `
+      <div class="card">
+        <div class="badge" style="background:${badgeColor}">${escapeHtml(offer.marketplace)}</div>
+        <div class="card-info">
+          <div class="title">${escapeHtml(offer.title)}</div>
+          <div class="source">${escapeHtml(offer.source)} &middot; ${escapeHtml(offer.marketplace)}</div>
+        </div>
+        <div class="price-col">
+          <div class="price-main">${formatPrice(offer.price)}</div>
+          <button class="btn-buy" onclick="window.open('${escapeHtml(offer.url)}', '_blank'); return false;">Купить</button>
+        </div>
+        <div class="rank">#${rank}</div>
+      </div>
+    `;
+  }
+
+  function addResults(data) {
+    const html = `
+      <div class="results-wrap">
+        <div class="results-header">
+          <strong>Топ-${data.results.length} лучших предложений</strong>
+          <span>Источники: ${escapeHtml(data.sources.join(', '))}</span>
+        </div>
+        <div class="cards">
+          ${data.results.map((o, i) => buildResultsCard(o, i + 1)).join('')}
+        </div>
+      </div>
+    `;
+    addBotMessage(html, `Найдено предложений: ${data.total_found} &nbsp;•&nbsp; ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+  }
+
+  async function doSearch(query) {
+    addUserMessage(query);
+    input.value = '';
+    btnSend.disabled = true;
+    removeProgress();
+    showProgress();
+
+    try {
+      const res = await fetch(`${API_BASE}/api/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Ошибка сервера' }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      removeProgress();
+      if (!data.results || data.results.length === 0) {
+        addBotMessage(
+          '<div style="color:var(--muted);">По запросу не удалось найти подходящих предложений. Попробуйте другой товар.</div>',
+          new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+        );
+      } else {
+        addResults(data);
+      }
+    } catch (err) {
+      removeProgress();
+      showError('Ошибка поиска: ' + escapeHtml(err.message));
+    } finally {
+      btnSend.disabled = false;
+      input.focus();
+      scrollBottom();
+    }
+  }
+
+  function handleSend() {
+    const q = input.value.trim();
+    if (!q) return;
+    doSearch(q);
+  }
+
+  btnSend.addEventListener('click', handleSend);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  });
+
+  btnClear.addEventListener('click', () => {
+    while (chat.children.length > 0) {
+      chat.removeChild(chat.firstChild);
+    }
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'empty';
+    emptyDiv.innerHTML = `
+      <h2>Stealth Price Chat</h2>
+      <p>История очищена. Введите название товара для нового поиска.</p>
+      <div style="margin-top:14px; display:flex; gap:8px; justify-content:center;">
+        <span class="tag" onclick="fillQuery('PS5 Slim')">PS5 Slim</span>
+        <span class="tag" onclick="fillQuery('RTX 5060 Ti 16GB')">RTX 5060 Ti 16GB</span>
+        <span class="tag" onclick="fillQuery('iPhone 15')">iPhone 15</span>
+      </div>
+    `;
+    chat.appendChild(emptyDiv);
+    empty = emptyDiv;
+    scrollBottom();
+  });
+
+  input.focus();
+  scrollBottom();
+</script>
+</body>
+</html>
+
