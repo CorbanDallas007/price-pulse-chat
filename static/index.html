@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stealth Price Chat</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg:#0f172a; --card:#1e293b; --accent:#3b82f6; --text:#f8fafc; --muted:#94a3b8; --border:#334155; --ozon:#005bff; --wb:#cb11ab; --avito:#00aaff; --ym:#ffcc00; --dns:#fc8507; --citilink:#ff5200; }
+body { font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+.container { max-width:900px; margin:0 auto; padding:20px; }
+header { display:flex; justify-content:space-between; align-items:center; padding:20px 0; border-bottom:1px solid var(--border); margin-bottom:24px; }
+h1 { font-size:1.5rem; font-weight:700; }
+.btn-clear { background:transparent; border:1px solid var(--border); color:var(--muted); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.875rem; }
+.btn-clear:hover { border-color:var(--accent); color:var(--accent); }
+.search-area { display:flex; gap:12px; margin-bottom:24px; }
+.search-input { flex:1; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 18px; color:var(--text); font-size:1rem; }
+.search-input:focus { outline:none; border-color:var(--accent); }
+.btn-search { background:var(--accent); border:none; border-radius:10px; padding:14px 24px; color:white; font-weight:600; cursor:pointer; font-size:1rem; }
+.btn-search:hover { filter:brightness(1.1); }
+.btn-search:disabled { opacity:0.6; cursor:not-allowed; }
+.condition-toggle { display:flex; align-items:center; gap:12px; margin-bottom:24px; padding:12px 16px; background:var(--card); border:1px solid var(--border); border-radius:10px; }
+.condition-toggle label { display:flex; align-items:center; gap:8px; font-size:0.875rem; color:var(--muted); cursor:pointer; }
+.condition-toggle input { accent-color:var(--accent); }
+.quick-tags { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
+.tag { background:var(--card); border:1px solid var(--border); color:var(--muted); padding:8px 14px; border-radius:20px; font-size:0.875rem; cursor:pointer; }
+.tag:hover { border-color:var(--accent); color:var(--accent); }
+.status { margin-bottom:16px; font-size:0.875rem; color:var(--muted); min-height:20px; }
+.results { display:flex; flex-direction:column; gap:12px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; gap:16px; align-items:flex-start; }
+.badge { display:inline-block; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0; }
+.badge-ozon { background:var(--ozon); color:white; }
+.badge-wb { background:var(--wb); color:white; }
+.badge-avito { background:var(--avito); color:white; }
+.badge-ym { background:var(--ym); color:#000; }
+.badge-dns { background:var(--dns); color:white; }
+.badge-citilink { background:var(--citilink); color:white; }
+.badge-used { background:var(--border); color:var(--text); margin-left:8px; }
+.card-info { flex:1; }
+.card-title { font-size:1rem; font-weight:600; margin-bottom:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.card-price { font-size:1.5rem; font-weight:700; color:var(--text); margin-bottom:4px; }
+.card-actions { margin-top:8px; }
+.btn-buy { background:var(--accent); border:none; border-radius:6px; padding:8px 16px; color:white; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block; font-size:0.875rem; }
+.btn-buy:hover { filter:brightness(1.1); }
+.telemetry { margin-top:20px; padding-top:16px; border-top:1px solid var(--border); font-size:0.875rem; color:var(--muted); text-align:center; }
+.history { margin-top:24px; padding-top:16px; border-top:1px solid var(--border); }
+.history-title { font-size:0.875rem; font-weight:600; color:var(--muted); margin-bottom:10px; }
+.history-item { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.875rem; }
+.history-item:last-child { border-bottom:none; }
+.history-query { color:var(--text); cursor:pointer; }
+.history-count { color:var(--muted); }
+.spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block; margin-right:8px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Stealth Price Chat</h1>
+    <button class="btn-clear" id="btnClear">Очистить историю</button>
+  </header>
+  <div class="condition-toggle">
+    <label><input type="checkbox" id="chkCondition"> Включая б/у (Авито)</label>
+  </div>
+  <div class="search-area">
+    <input type="text" class="search-input" id="searchInput" placeholder="Введите товар (например, iPhone 15 128GB)">
+    <button class="btn-search" id="btnSearch">Искать</button>
+  </div>
+  <div class="quick-tags">
+    <span class="tag" data-query="PS5 Slim">PS5 Slim</span>
+    <span class="tag" data-query="RTX 5060 Ti 16GB">RTX 5060 Ti 16GB</span>
+    <span class="tag" data-query="iPhone 15 128GB">iPhone 15 128GB</span>
+    <span class="tag" data-query="Dyson V15">Dyson V15</span>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="results" id="results"></div>
+  <div class="telemetry" id="telemetry"></div>
+  <div class="history">
+    <div class="history-title">История поисков</div>
+    <div id="historyList"></div>
+  </div>
+</div>
+<script id="spc-js">
+(function(){
+  const searchInput=document.getElementById('searchInput');
+  const btnSearch=document.getElementById('btnSearch');
+  const btnClear=document.getElementById('btnClear');
+  const statusEl=document.getElementById('status');
+  const resultsEl=document.getElementById('results');
+  const telemetryEl=document.getElementById('telemetry');
+  const historyList=document.getElementById('historyList');
+  const chkCondition=document.getElementById('chkCondition');
+  const tags=document.querySelectorAll('.tag');
+  let history=JSON.parse(localStorage.getItem('spc_history')||'[]');
+  function renderHistory(){
+    if(history.length===0){historyList.innerHTML='<div style="color:var(--muted);font-size:0.875rem;">История пуста</div>';return;}
+    historyList.innerHTML=history.map((h,i)=>`<div class="history-item"><span class="history-query" onclick="fillQuery('${h.query.replace(/'/g,"\\'")}')">${escapeHtml(h.query)}</span><span class="history-count">${h.count} предложений</span></div>`).join('');
+  }
+  window.fillQuery=function(q){searchInput.value=q;searchInput.focus();};
+  function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+  function addToHistory(query,count){history=history.filter(h=>h.query!==query);history.unshift({query,count});if(history.length>10)history.pop();localStorage.setItem('spc_history',JSON.stringify(history));renderHistory();}
+  function setStatus(text,loading){statusEl.innerHTML=loading?`<span class="spinner"></span>${text}`:text;}
+  function getBadgeClass(m){const mm=m.toLowerCase();if(mm.includes('ozon'))return'badge-ozon';if(mm.includes('wildberries')||mm.includes('wb'))return'badge-wb';if(mm.includes('avito'))return'badge-avito';if(mm.includes('яндекс')||mm.includes('ym')||mm.includes('yandex'))return'badge-ym';if(mm.includes('dns'))return'badge-dns';if(mm.includes('citilink')||mm.includes('ситилинк'))return'badge-citilink';return'badge-avito';}
+  function formatPrice(p){return String(p).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' \u20bd';}
+  async function doSearch(){
+    const query=searchInput.value.trim();
+    if(!query)return;
+    btnSearch.disabled=true;resultsEl.innerHTML='';telemetryEl.textContent='';setStatus('Опрос агрегаторов и маркетплейсов...',true);
+    const condition=chkCondition.checked?'all':'new';
+    const startTime=performance.now();
+    try{
+      const resp=await fetch('http://localhost:8000/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,condition})});
+      if(!resp.ok)throw new Error('Ошибка сервера: '+resp.status);
+      const data=await resp.json();
+      const elapsedMs=Math.round(performance.now()-startTime);
+      setStatus(`Поиск завершён: найдено ${data.items.length} предложений`,false);
+      const checked=data.sources.filter(s=>s.items_found>0).length;const total=data.sources.length;
+      telemetryEl.textContent=`Найдено за ${elapsedMs} мс \u2022 Проверено площадок: ${checked}/${total}`;
+      if(data.items.length===0){resultsEl.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center;">Подходящих предложений не найдено</div>';}
+      else{
+        resultsEl.innerHTML=data.items.map((offer,idx)=>`<div class="card"><span class="badge ${getBadgeClass(offer.marketplace)}${offer.is_used?' badge-used':''}">${escapeHtml(offer.marketplace)}${offer.is_used?' \u00b7 Б/У':''}</span><div class="card-info"><div class="card-title">${escapeHtml(offer.title)}</div><div class="card-price">${formatPrice(offer.price)}</div><div class="card-actions"><a href="${escapeHtml(offer.url)}" class="btn-buy" target="_blank" rel="noopener noreferrer">Купить</a></div></div></div>`).join('');
+      }
+      addToHistory(query,data.items.length);
+    }catch(err){setStatus('Ошибка: '+err.message,false);console.error(err);}
+    finally{btnSearch.disabled=false;}
+  }
+  btnSearch.addEventListener('click',doSearch);
+  searchInput.addEventListener('keypress',(e)=>{if(e.key==='Enter')doSearch();});
+  btnClear.addEventListener('click',()=>{history=[];localStorage.removeItem('spc_history');renderHistory();});
+  tags.forEach(tag=>{tag.addEventListener('click',()=>{searchInput.value=tag.getAttribute('data-query');});});
+  renderHistory();
+})();
+</script>
+</body>
+</html>
